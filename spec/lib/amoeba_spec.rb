@@ -125,6 +125,10 @@ describe 'amoeba' do
     it { expect(new_post.tap(&:save).comments.where(nerf: 'bonk').length).to eq(1) }
     # The duplicate will have a modified 'nerf' value.
     it { expect(new_post.tap(&:save).comments.where(nerf: 'bonkers', contents: nil).length).to eq(1) }
+
+    # Testing duplicates with a 'has_many ... through' reference and a 'clone'
+    # amoeba configuration results in new records (with new ids).
+    it { expect(old_post.widgets.map(&:id) & new_post.tap(&:save).widgets.map(&:id)).to be_empty }
   end
 
   context 'dup' do
@@ -212,9 +216,9 @@ describe 'amoeba' do
       #          c.nerf == 'bonkers' && c.contents.nil?
       #        end.length).to eq(1)
 
-      new_post.widgets.map(&:id).each do |id|
-        expect(old_post.widgets.map(&:id)).not_to include(id)
-      end
+      # new_post.widgets.map(&:id).each do |id|
+      #   expect(old_post.widgets.map(&:id)).not_to include(id)
+      # end
 
       expect(new_post.custom_things.length).to eq(3)
       expect(new_post.custom_things.select { |ct| ct.value == [] }.length).to eq(1)

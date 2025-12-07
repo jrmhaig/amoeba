@@ -3,6 +3,94 @@
 require 'spec_helper'
 
 describe 'amoeba' do
+  context 'amoeba_dup' do
+    subject(:save_post) { new_post.save! }
+
+    let(:old_post) { ::Post.find(1) }
+    let(:new_post) { old_post.amoeba_dup }
+
+    before do
+      require ::File.dirname(__FILE__) + '/../support/data.rb'
+      old_post.class.amoeba do
+        prepend contents: "Here's a copy: "
+      end
+    end
+
+    # Unecessary. Included in refactor for completeness.
+    it { expect(old_post.comments.map(&:contents).include?('I love it!')).to be_truthy }
+
+    it { is_expected.to be_truthy }
+
+    it do
+      save_post
+      expect(new_post.title).to eq("Copy of #{old_post.title}")
+    end
+
+    it { expect { save_post }.not_to change(Tag.all, :count) }
+    it { expect { save_post }.not_to change(Category, :count) }
+
+    # The original versions of these tests counted checked that the counts of
+    # various models were multipled when the new instance is saved. This
+    # depends on there being no other data in the database, which is not
+    # reliable. The new versions of these tests check for an increase in the
+    # count by a certain amount. This depends on how the test data is created.
+
+    # Testing a 'has_one' relation with default amoeba configuration.
+    it { expect { save_post }.to change(Account, :count).by(1) }
+
+    # Testing a 'has_one ... through' relation with default amoeba
+    # configuration.
+    it { expect { save_post }.to change(History.all, :count).by(1) }
+
+    # Testing a 'has_many' relation with default amoeba configuration.
+    it { expect { save_post }.to change(Supercat.all, :count).by(3) }
+
+    # Testing that a new instance is created when a duplicate is saved.
+    it { expect { save_post }.to change(Post.all, :count).by(1) }
+
+    # Testing a 'has_one' relation with default amoeba configuration.
+    it { expect { save_post }.to change(PostConfig.all, :count).by(1) }
+
+    # The dup adds extra comments based on 'customize'. Three comments are
+    # added and two new ones are created.
+    it { expect { save_post }.to change(Comment.all, :count).by(5) }
+
+    # Ratings are linked to comments. The dup will duplicate the ratings for
+    # the existing comments (6 each for the test data) and the new comments
+    # will have no ratings.
+    it { expect { save_post }.to change(Rating.all, :count).by(18) }
+
+    # Testing a 'has_and_belongs_to_many' relationship with the default amoeba
+    # configuration.
+    # The `tag_count` method fetches the number of records in the join table
+    # and this tests that the three tags on the post are applied to the new
+    # post.
+    it { expect { save_post }.to change(Post, :tag_count).by(3) }
+
+    # Testing a 'has_one ... through' relationship with the 'clone' amoeba
+    # configuration.
+    # The three widgets that are linked, via a join table, should be duplicated
+    # in the Widget model and add corresponding records in the join table,
+    # PostWidget.
+    it { expect { save_post }.to change(Widget.all, :count).by(3) }
+    it { expect { save_post }.to change(PostWidget, :count).by(3) }
+
+    # Testing a 'has_and_belongs_to_many' relationship with the 'clone' amoeba
+    # configuration.
+    # There are three notes attached to the post so three new notes should be
+    # created in the Note model as well as three records in the join table. The
+    # `note_count` method fetches the number of records in the join table.
+    it { expect { save_post }.to change(Note.all, :count).by(3) }
+    it { expect { save_post }.to change(Post, :note_count).by(3) }
+
+    # Testing the 'include_association' amoeba configuration.
+    # Each Post can have many Supercats and each Supercat can have many
+    # Supperkitens. In the test data the post has three supercats and each
+    # supercat has three superkittens (how many were there going to St Ives?).
+    # As a result 9 extra Superkittens should be generated.
+    it { expect { save_post }.to change(Superkitten.all, :count).by(9) }
+  end
+
   context 'dup' do
     before do
       require ::File.dirname(__FILE__) + '/../support/data.rb'
@@ -13,7 +101,7 @@ describe 'amoeba' do
     it 'duplicates associated child records' do
       # Posts {{{
       old_post = ::Post.find(1)
-      expect(old_post.comments.map(&:contents).include?('I love it!')).to be_truthy
+      # expect(old_post.comments.map(&:contents).include?('I love it!')).to be_truthy
 
       old_post.class.amoeba do
         prepend contents: "Here's a copy: "
@@ -21,56 +109,57 @@ describe 'amoeba' do
 
       new_post = old_post.amoeba_dup
 
-      start_account_count = Account.all.count
-      start_history_count = History.all.count
-      start_cat_count = Category.all.count
-      start_supercat_count = Supercat.all.count
-      start_tag_count = Tag.all.count
-      start_note_count = Note.all.count
-      start_widget_count = Widget.all.count
-      start_post_count = Post.all.count
-      start_comment_count = Comment.all.count
-      start_rating_count = Rating.all.count
-      start_postconfig_count = PostConfig.all.count
-      start_postwidget_count = PostWidget.all.count
-      start_superkitten_count = Superkitten.all.count
-      start_posttag_count = Post.tag_count
-      start_postnote_count = Post.note_count
+      # start_account_count = Account.all.count
+      # start_history_count = History.all.count
+      # start_cat_count = Category.all.count
+      # start_supercat_count = Supercat.all.count
+      # start_tag_count = Tag.all.count
+      # start_note_count = Note.all.count
+      # start_widget_count = Widget.all.count
+      # start_post_count = Post.all.count
+      # start_comment_count = Comment.all.count
+      # start_rating_count = Rating.all.count
+      # start_postconfig_count = PostConfig.all.count
+      # start_postwidget_count = PostWidget.all.count
+      # start_superkitten_count = Superkitten.all.count
+      # start_posttag_count = Post.tag_count
+      # start_postnote_count = Post.note_count
 
-      expect(new_post.save!).to be_truthy
-      expect(new_post.title).to eq("Copy of #{old_post.title}")
+      new_post.save!
+      # expect(new_post.save!).to be_truthy
+      # expect(new_post.title).to eq("Copy of #{old_post.title}")
 
-      end_account_count = Account.count
-      end_history_count = History.count
-      end_cat_count = Category.count
-      end_supercat_count = Supercat.count
-      end_tag_count = Tag.all.count
-      end_note_count = Note.all.count
-      end_widget_count = Widget.all.count
-      end_post_count = Post.all.count
-      end_comment_count = Comment.all.count
-      end_rating_count = Rating.all.count
-      end_postconfig_count = PostConfig.all.count
-      end_postwidget_count = PostWidget.all.count
-      end_superkitten_count = Superkitten.all.count
-      end_posttag_count = Post.tag_count
-      end_postnote_count = Post.note_count
+      # end_account_count = Account.count
+      # end_history_count = History.count
+      # end_cat_count = Category.count
+      # end_supercat_count = Supercat.count
+      # end_tag_count = Tag.all.count
+      # end_note_count = Note.all.count
+      # end_widget_count = Widget.all.count
+      # end_post_count = Post.all.count
+      # end_comment_count = Comment.all.count
+      # end_rating_count = Rating.all.count
+      # end_postconfig_count = PostConfig.all.count
+      # end_postwidget_count = PostWidget.all.count
+      # end_superkitten_count = Superkitten.all.count
+      # end_posttag_count = Post.tag_count
+      # end_postnote_count = Post.note_count
 
-      expect(end_tag_count).to         eq(start_tag_count)
-      expect(end_cat_count).to         eq(start_cat_count)
-      expect(end_account_count).to     eq(start_account_count * 2)
-      expect(end_history_count).to     eq(start_history_count * 2)
-      expect(end_supercat_count).to    eq(start_supercat_count * 2)
-      expect(end_post_count).to        eq(start_post_count * 2)
-      expect(end_comment_count).to     eq((start_comment_count * 2) + 2)
-      expect(end_rating_count).to      eq(start_rating_count * 2)
-      expect(end_postconfig_count).to  eq(start_postconfig_count * 2)
-      expect(end_posttag_count).to     eq(start_posttag_count * 2)
-      expect(end_widget_count).to      eq(start_widget_count * 2)
-      expect(end_postwidget_count).to  eq(start_postwidget_count * 2)
-      expect(end_note_count).to        eq(start_note_count * 2)
-      expect(end_postnote_count).to    eq(start_postnote_count * 2)
-      expect(end_superkitten_count).to eq(start_superkitten_count * 2)
+      # expect(end_tag_count).to         eq(start_tag_count)
+      # expect(end_cat_count).to         eq(start_cat_count)
+      # expect(end_account_count).to     eq(start_account_count * 2)
+      # expect(end_history_count).to     eq(start_history_count * 2)
+      # expect(end_supercat_count).to    eq(start_supercat_count * 2)
+      # expect(end_post_count).to        eq(start_post_count * 2)
+      # expect(end_comment_count).to     eq((start_comment_count * 2) + 2)
+      # expect(end_rating_count).to      eq(start_rating_count * 2)
+      # expect(end_postconfig_count).to  eq(start_postconfig_count * 2)
+      # expect(end_posttag_count).to     eq(start_posttag_count * 2)
+      # expect(end_widget_count).to      eq(start_widget_count * 2)
+      # expect(end_postwidget_count).to  eq(start_postwidget_count * 2)
+      # expect(end_note_count).to        eq(start_note_count * 2)
+      # expect(end_postnote_count).to    eq(start_postnote_count * 2)
+      # expect(end_superkitten_count).to eq(start_superkitten_count * 2)
 
       expect(new_post.supercats.map(&:ramblings)).to include('Copy of zomg')
       expect(new_post.supercats.map(&:other_ramblings).uniq.length).to eq(1)

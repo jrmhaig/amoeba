@@ -129,6 +129,11 @@ describe 'amoeba' do
     # Testing duplicates with a 'has_many ... through' reference and a 'clone'
     # amoeba configuration results in new records (with new ids).
     it { expect(old_post.widgets.map(&:id) & new_post.tap(&:save).widgets.map(&:id)).to be_empty }
+
+    # Testing with a value that is serialized with a custom serializer.
+    # The 'value' of a CustomThing is a string that is serialized as an array.
+    # The test data has three instances of CustomThing; [], [1, 2] and [78]
+    it { expect(new_post.tap(&:save).custom_things.pluck(:value)).to contain_exactly([], [1, 2], [78]) }
   end
 
   context 'dup' do
@@ -220,10 +225,10 @@ describe 'amoeba' do
       #   expect(old_post.widgets.map(&:id)).not_to include(id)
       # end
 
-      expect(new_post.custom_things.length).to eq(3)
-      expect(new_post.custom_things.select { |ct| ct.value == [] }.length).to eq(1)
-      expect(new_post.custom_things.select { |ct| ct.value == [1, 2] }.length).to eq(1)
-      expect(new_post.custom_things.select { |ct| ct.value == [78] }.length).to eq(1)
+      # expect(new_post.custom_things.length).to eq(3)
+      # expect(new_post.custom_things.select { |ct| ct.value == [] }.length).to eq(1)
+      # expect(new_post.custom_things.select { |ct| ct.value == [1, 2] }.length).to eq(1)
+      # expect(new_post.custom_things.select { |ct| ct.value == [78] }.length).to eq(1)
       # }}}
       # Author {{{
       old_author = Author.find(1)

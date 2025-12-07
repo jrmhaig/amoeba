@@ -106,6 +106,25 @@ describe 'amoeba' do
     #   * 'append' to add " (copied version)"
     #   * 'regext' to replace "dog" with "cat"
     it { expect(new_post.contents).to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)") }
+
+    # Testing 'customize' configuration.
+    # Two of the comments in the old post have 'nerf' values that cause lambdas
+    # to generate additional when the post is duplicated.
+    # The old post has three comments so the new post will have five comments.
+    it { expect(new_post.comments.length).to eq(5) }
+    # When the comment's 'nerf' value is 'ratatat' the new post will have the
+    # comment duplicated.
+    # The 'where' will only work once new_post has been saved.
+    it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat').length).to eq(2) }
+    # The duplicate will have a nil 'contents' while the other version is not.
+    it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat', contents: nil).length).to eq(1) }
+    # When the comment's 'nerf' value is 'bonk' the new post will have the
+    # comment duplicated. The new comment will have a modified 'nerf' value.
+    # The 'where' will only work once new_post has been saved.
+    # There will only be a single comment with the original 'nerf' value.
+    it { expect(new_post.tap(&:save).comments.where(nerf: 'bonk').length).to eq(1) }
+    # The duplicate will have a modified 'nerf' value.
+    it { expect(new_post.tap(&:save).comments.where(nerf: 'bonkers', contents: nil).length).to eq(1) }
   end
 
   context 'dup' do
@@ -182,16 +201,16 @@ describe 'amoeba' do
       # expect(new_post.supercats.map(&:other_ramblings).uniq.length).to eq(1)
       # expect(new_post.supercats.map(&:other_ramblings).uniq).to include('La la la')
       # expect(new_post.contents).to eq("Here's a copy: #{old_post.contents.gsub(/dog/,
-                                                                               'cat')} (copied version)")
-      expect(new_post.comments.length).to eq(5)
-      expect(new_post.comments.select do |c|
-               c.nerf == 'ratatat' && c.contents.nil?
-             end.length).to eq(1)
-      expect(new_post.comments.select { |c| c.nerf == 'ratatat' }.length).to eq(2)
-      expect(new_post.comments.select { |c| c.nerf == 'bonk' }.length).to eq(1)
-      expect(new_post.comments.select do |c|
-               c.nerf == 'bonkers' && c.contents.nil?
-             end.length).to eq(1)
+      #                                                                          'cat')} (copied version)")
+      # expect(new_post.comments.length).to eq(5)
+      # expect(new_post.comments.select do |c|
+      #          c.nerf == 'ratatat' && c.contents.nil?
+      #        end.length).to eq(1)
+      # expect(new_post.comments.select { |c| c.nerf == 'ratatat' }.length).to eq(2)
+      # expect(new_post.comments.select { |c| c.nerf == 'bonk' }.length).to eq(1)
+      # expect(new_post.comments.select do |c|
+      #          c.nerf == 'bonkers' && c.contents.nil?
+      #        end.length).to eq(1)
 
       new_post.widgets.map(&:id).each do |id|
         expect(old_post.widgets.map(&:id)).not_to include(id)

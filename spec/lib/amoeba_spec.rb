@@ -89,6 +89,23 @@ describe 'amoeba' do
     # supercat has three superkittens (how many were there going to St Ives?).
     # As a result 9 extra Superkittens should be generated.
     it { expect { save_post }.to change(Superkitten.all, :count).by(9) }
+
+    # Testing 'prepend' configuration on attribute.
+    # The attribute `ramblings` is configured to prepend 'Copy of '.
+    it { expect(new_post.supercats.map(&:ramblings)).to contain_exactly('Copy of zomg', 'Copy of why', 'Copy of ohnoes') }
+
+    # Testing 'set' configuration on attribute.
+    # The attribute 'other_ramblings' is configured to set to 'La la la'.
+    # The original tests check that (a) the values are unique and (b) the value
+    # is set correctly. This new test will check that there are three values
+    # that are all set the same.
+    it { expect(new_post.supercats.map(&:other_ramblings)).to contain_exactly('La la la', 'La la la', 'La la la') }
+
+    # Testing various string modifications.
+    #   * 'prepend' to add "Here's a copy: ", defined in the 'before' above
+    #   * 'append' to add " (copied version)"
+    #   * 'regext' to replace "dog" with "cat"
+    it { expect(new_post.contents).to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)") }
   end
 
   context 'dup' do
@@ -161,10 +178,10 @@ describe 'amoeba' do
       # expect(end_postnote_count).to    eq(start_postnote_count * 2)
       # expect(end_superkitten_count).to eq(start_superkitten_count * 2)
 
-      expect(new_post.supercats.map(&:ramblings)).to include('Copy of zomg')
-      expect(new_post.supercats.map(&:other_ramblings).uniq.length).to eq(1)
-      expect(new_post.supercats.map(&:other_ramblings).uniq).to include('La la la')
-      expect(new_post.contents).to eq("Here's a copy: #{old_post.contents.gsub(/dog/,
+      # expect(new_post.supercats.map(&:ramblings)).to include('Copy of zomg')
+      # expect(new_post.supercats.map(&:other_ramblings).uniq.length).to eq(1)
+      # expect(new_post.supercats.map(&:other_ramblings).uniq).to include('La la la')
+      # expect(new_post.contents).to eq("Here's a copy: #{old_post.contents.gsub(/dog/,
                                                                                'cat')} (copied version)")
       expect(new_post.comments.length).to eq(5)
       expect(new_post.comments.select do |c|

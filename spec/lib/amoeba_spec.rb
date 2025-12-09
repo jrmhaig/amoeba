@@ -4,136 +4,154 @@ require 'spec_helper'
 
 describe 'amoeba' do
   context 'amoeba_dup' do
-    subject(:save_post) { new_post.save! }
+    before { require ::File.dirname(__FILE__) + '/../support/data.rb' }
 
-    let(:old_post) { ::Post.find(1) }
-    let(:new_post) { old_post.amoeba_dup }
+    context 'with posts' do
+      subject(:save_post) { new_post.save! }
 
-    before do
-      require ::File.dirname(__FILE__) + '/../support/data.rb'
-      old_post.class.amoeba do
-        prepend contents: "Here's a copy: "
+      let(:old_post) { ::Post.find(1) }
+      let(:new_post) { old_post.amoeba_dup }
+
+      before do
+        old_post.class.amoeba do
+          prepend contents: "Here's a copy: "
+        end
       end
+
+      # Unecessary. Included in refactor for completeness.
+      it { expect(old_post.comments.map(&:contents).include?('I love it!')).to be_truthy }
+
+      it { is_expected.to be_truthy }
+
+      it do
+        save_post
+        expect(new_post.title).to eq("Copy of #{old_post.title}")
+      end
+
+      it { expect { save_post }.not_to change(Tag.all, :count) }
+      it { expect { save_post }.not_to change(Category, :count) }
+
+      # The original versions of these tests counted checked that the counts of
+      # various models were multipled when the new instance is saved. This
+      # depends on there being no other data in the database, which is not
+      # reliable. The new versions of these tests check for an increase in the
+      # count by a certain amount. This depends on how the test data is created.
+
+      # Testing a 'has_one' relation with default amoeba configuration.
+      it { expect { save_post }.to change(Account, :count).by(1) }
+
+      # Testing a 'has_one ... through' relation with default amoeba
+      # configuration.
+      it { expect { save_post }.to change(History.all, :count).by(1) }
+
+      # Testing a 'has_many' relation with default amoeba configuration.
+      it { expect { save_post }.to change(Supercat.all, :count).by(3) }
+
+      # Testing that a new instance is created when a duplicate is saved.
+      it { expect { save_post }.to change(Post.all, :count).by(1) }
+
+      # Testing a 'has_one' relation with default amoeba configuration.
+      it { expect { save_post }.to change(PostConfig.all, :count).by(1) }
+
+      # The dup adds extra comments based on 'customize'. Three comments are
+      # added and two new ones are created.
+      it { expect { save_post }.to change(Comment.all, :count).by(5) }
+
+      # Ratings are linked to comments. The dup will duplicate the ratings for
+      # the existing comments (6 each for the test data) and the new comments
+      # will have no ratings.
+      it { expect { save_post }.to change(Rating.all, :count).by(18) }
+
+      # Testing a 'has_and_belongs_to_many' relationship with the default amoeba
+      # configuration.
+      # The `tag_count` method fetches the number of records in the join table
+      # and this tests that the three tags on the post are applied to the new
+      # post.
+      it { expect { save_post }.to change(Post, :tag_count).by(3) }
+
+      # Testing a 'has_one ... through' relationship with the 'clone' amoeba
+      # configuration.
+      # The three widgets that are linked, via a join table, should be duplicated
+      # in the Widget model and add corresponding records in the join table,
+      # PostWidget.
+      it { expect { save_post }.to change(Widget.all, :count).by(3) }
+      it { expect { save_post }.to change(PostWidget, :count).by(3) }
+
+      # Testing a 'has_and_belongs_to_many' relationship with the 'clone' amoeba
+      # configuration.
+      # There are three notes attached to the post so three new notes should be
+      # created in the Note model as well as three records in the join table. The
+      # `note_count` method fetches the number of records in the join table.
+      it { expect { save_post }.to change(Note.all, :count).by(3) }
+      it { expect { save_post }.to change(Post, :note_count).by(3) }
+
+      # Testing the 'include_association' amoeba configuration.
+      # Each Post can have many Supercats and each Supercat can have many
+      # Supperkitens. In the test data the post has three supercats and each
+      # supercat has three superkittens (how many were there going to St Ives?).
+      # As a result 9 extra Superkittens should be generated.
+      it { expect { save_post }.to change(Superkitten.all, :count).by(9) }
+
+      # Testing 'prepend' configuration on attribute.
+      # The attribute `ramblings` is configured to prepend 'Copy of '.
+      it { expect(new_post.supercats.map(&:ramblings)).to contain_exactly('Copy of zomg', 'Copy of why', 'Copy of ohnoes') }
+
+      # Testing 'set' configuration on attribute.
+      # The attribute 'other_ramblings' is configured to set to 'La la la'.
+      # The original tests check that (a) the values are unique and (b) the value
+      # is set correctly. This new test will check that there are three values
+      # that are all set the same.
+      it { expect(new_post.supercats.map(&:other_ramblings)).to contain_exactly('La la la', 'La la la', 'La la la') }
+
+      # Testing various string modifications.
+      #   * 'prepend' to add "Here's a copy: ", defined in the 'before' above
+      #   * 'append' to add " (copied version)"
+      #   * 'regext' to replace "dog" with "cat"
+      it { expect(new_post.contents).to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)") }
+
+      # Testing 'customize' configuration.
+      # Two of the comments in the old post have 'nerf' values that cause lambdas
+      # to generate additional when the post is duplicated.
+      # The old post has three comments so the new post will have five comments.
+      it { expect(new_post.comments.length).to eq(5) }
+      # When the comment's 'nerf' value is 'ratatat' the new post will have the
+      # comment duplicated.
+      # The 'where' will only work once new_post has been saved.
+      it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat').length).to eq(2) }
+      # The duplicate will have a nil 'contents' while the other version is not.
+      it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat', contents: nil).length).to eq(1) }
+      # When the comment's 'nerf' value is 'bonk' the new post will have the
+      # comment duplicated. The new comment will have a modified 'nerf' value.
+      # The 'where' will only work once new_post has been saved.
+      # There will only be a single comment with the original 'nerf' value.
+      it { expect(new_post.tap(&:save).comments.where(nerf: 'bonk').length).to eq(1) }
+      # The duplicate will have a modified 'nerf' value.
+      it { expect(new_post.tap(&:save).comments.where(nerf: 'bonkers', contents: nil).length).to eq(1) }
+
+      # Testing duplicates with a 'has_many ... through' reference and a 'clone'
+      # amoeba configuration results in new records (with new ids).
+      it { expect(old_post.widgets.map(&:id) & new_post.tap(&:save).widgets.map(&:id)).to be_empty }
+
+      # Testing with a value that is serialized with a custom serializer.
+      # The 'value' of a CustomThing is a string that is serialized as an array.
+      # The test data has three instances of CustomThing; [], [1, 2] and [78]
+      it { expect(new_post.tap(&:save).custom_things.pluck(:value)).to contain_exactly([], [1, 2], [78]) }
     end
 
-    # Unecessary. Included in refactor for completeness.
-    it { expect(old_post.comments.map(&:contents).include?('I love it!')).to be_truthy }
+    context 'with authors' do
+      let(:old_author) { Author.find(1) }
+      let(:new_author) { old_author.amoeba_dup.tap(&:save!) }
 
-    it { is_expected.to be_truthy }
+      it { expect(new_author.errors.messages).to be_empty }
 
-    it do
-      save_post
-      expect(new_post.title).to eq("Copy of #{old_post.title}")
+      # An author has multiple posts (default amoeba configuration) and posts
+      # in turn have multiple custom things (default amoeba configuration). The
+      # custom things have a string value field that is serialized via a custom
+      # serializer into an array.
+      # The test author has three posts, each of which have three custom
+      # things. These should be duplicated.
+      it { expect(new_author.posts.first.custom_things.map(&:value)).to contain_exactly([], [1, 2], [78]) }
     end
-
-    it { expect { save_post }.not_to change(Tag.all, :count) }
-    it { expect { save_post }.not_to change(Category, :count) }
-
-    # The original versions of these tests counted checked that the counts of
-    # various models were multipled when the new instance is saved. This
-    # depends on there being no other data in the database, which is not
-    # reliable. The new versions of these tests check for an increase in the
-    # count by a certain amount. This depends on how the test data is created.
-
-    # Testing a 'has_one' relation with default amoeba configuration.
-    it { expect { save_post }.to change(Account, :count).by(1) }
-
-    # Testing a 'has_one ... through' relation with default amoeba
-    # configuration.
-    it { expect { save_post }.to change(History.all, :count).by(1) }
-
-    # Testing a 'has_many' relation with default amoeba configuration.
-    it { expect { save_post }.to change(Supercat.all, :count).by(3) }
-
-    # Testing that a new instance is created when a duplicate is saved.
-    it { expect { save_post }.to change(Post.all, :count).by(1) }
-
-    # Testing a 'has_one' relation with default amoeba configuration.
-    it { expect { save_post }.to change(PostConfig.all, :count).by(1) }
-
-    # The dup adds extra comments based on 'customize'. Three comments are
-    # added and two new ones are created.
-    it { expect { save_post }.to change(Comment.all, :count).by(5) }
-
-    # Ratings are linked to comments. The dup will duplicate the ratings for
-    # the existing comments (6 each for the test data) and the new comments
-    # will have no ratings.
-    it { expect { save_post }.to change(Rating.all, :count).by(18) }
-
-    # Testing a 'has_and_belongs_to_many' relationship with the default amoeba
-    # configuration.
-    # The `tag_count` method fetches the number of records in the join table
-    # and this tests that the three tags on the post are applied to the new
-    # post.
-    it { expect { save_post }.to change(Post, :tag_count).by(3) }
-
-    # Testing a 'has_one ... through' relationship with the 'clone' amoeba
-    # configuration.
-    # The three widgets that are linked, via a join table, should be duplicated
-    # in the Widget model and add corresponding records in the join table,
-    # PostWidget.
-    it { expect { save_post }.to change(Widget.all, :count).by(3) }
-    it { expect { save_post }.to change(PostWidget, :count).by(3) }
-
-    # Testing a 'has_and_belongs_to_many' relationship with the 'clone' amoeba
-    # configuration.
-    # There are three notes attached to the post so three new notes should be
-    # created in the Note model as well as three records in the join table. The
-    # `note_count` method fetches the number of records in the join table.
-    it { expect { save_post }.to change(Note.all, :count).by(3) }
-    it { expect { save_post }.to change(Post, :note_count).by(3) }
-
-    # Testing the 'include_association' amoeba configuration.
-    # Each Post can have many Supercats and each Supercat can have many
-    # Supperkitens. In the test data the post has three supercats and each
-    # supercat has three superkittens (how many were there going to St Ives?).
-    # As a result 9 extra Superkittens should be generated.
-    it { expect { save_post }.to change(Superkitten.all, :count).by(9) }
-
-    # Testing 'prepend' configuration on attribute.
-    # The attribute `ramblings` is configured to prepend 'Copy of '.
-    it { expect(new_post.supercats.map(&:ramblings)).to contain_exactly('Copy of zomg', 'Copy of why', 'Copy of ohnoes') }
-
-    # Testing 'set' configuration on attribute.
-    # The attribute 'other_ramblings' is configured to set to 'La la la'.
-    # The original tests check that (a) the values are unique and (b) the value
-    # is set correctly. This new test will check that there are three values
-    # that are all set the same.
-    it { expect(new_post.supercats.map(&:other_ramblings)).to contain_exactly('La la la', 'La la la', 'La la la') }
-
-    # Testing various string modifications.
-    #   * 'prepend' to add "Here's a copy: ", defined in the 'before' above
-    #   * 'append' to add " (copied version)"
-    #   * 'regext' to replace "dog" with "cat"
-    it { expect(new_post.contents).to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)") }
-
-    # Testing 'customize' configuration.
-    # Two of the comments in the old post have 'nerf' values that cause lambdas
-    # to generate additional when the post is duplicated.
-    # The old post has three comments so the new post will have five comments.
-    it { expect(new_post.comments.length).to eq(5) }
-    # When the comment's 'nerf' value is 'ratatat' the new post will have the
-    # comment duplicated.
-    # The 'where' will only work once new_post has been saved.
-    it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat').length).to eq(2) }
-    # The duplicate will have a nil 'contents' while the other version is not.
-    it { expect(new_post.tap(&:save).comments.where(nerf: 'ratatat', contents: nil).length).to eq(1) }
-    # When the comment's 'nerf' value is 'bonk' the new post will have the
-    # comment duplicated. The new comment will have a modified 'nerf' value.
-    # The 'where' will only work once new_post has been saved.
-    # There will only be a single comment with the original 'nerf' value.
-    it { expect(new_post.tap(&:save).comments.where(nerf: 'bonk').length).to eq(1) }
-    # The duplicate will have a modified 'nerf' value.
-    it { expect(new_post.tap(&:save).comments.where(nerf: 'bonkers', contents: nil).length).to eq(1) }
-
-    # Testing duplicates with a 'has_many ... through' reference and a 'clone'
-    # amoeba configuration results in new records (with new ids).
-    it { expect(old_post.widgets.map(&:id) & new_post.tap(&:save).widgets.map(&:id)).to be_empty }
-
-    # Testing with a value that is serialized with a custom serializer.
-    # The 'value' of a CustomThing is a string that is serialized as an array.
-    # The test data has three instances of CustomThing; [], [1, 2] and [78]
-    it { expect(new_post.tap(&:save).custom_things.pluck(:value)).to contain_exactly([], [1, 2], [78]) }
   end
 
   context 'dup' do
@@ -144,18 +162,6 @@ describe 'amoeba' do
     let(:first_product) { Product.find(1) }
 
     it 'duplicates associated child records' do
-      # Author {{{
-      old_author = Author.find(1)
-      new_author = old_author.amoeba_dup
-      new_author.save!
-      expect(new_author.errors.messages).to be_empty
-      expect(new_author.posts.first.custom_things.length).to eq(3)
-      expect(new_author.posts.first.custom_things.select { |ct| ct.value == [] }.length).to eq(1)
-      expect(new_author.posts.first.custom_things.select do |ct|
-               ct.value == [1, 2]
-             end.length).to eq(1)
-      expect(new_author.posts.first.custom_things.select { |ct| ct.value == [78] }.length).to eq(1)
-      # }}}
       # Products {{{
       # Base Class {{{
 

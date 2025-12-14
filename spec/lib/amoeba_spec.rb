@@ -94,7 +94,10 @@ describe 'amoeba' do
 
       # Testing 'prepend' configuration on attribute.
       # The attribute `ramblings` is configured to prepend 'Copy of '.
-      it { expect(new_post.supercats.map(&:ramblings)).to contain_exactly('Copy of zomg', 'Copy of why', 'Copy of ohnoes') }
+      it do
+        expect(new_post.supercats.map(&:ramblings))
+          .to contain_exactly('Copy of zomg', 'Copy of why', 'Copy of ohnoes')
+      end
 
       # Testing 'set' configuration on attribute.
       # The attribute 'other_ramblings' is configured to set to 'La la la'.
@@ -107,7 +110,10 @@ describe 'amoeba' do
       #   * 'prepend' to add "Here's a copy: ", defined in the 'before' above
       #   * 'append' to add " (copied version)"
       #   * 'regext' to replace "dog" with "cat"
-      it { expect(new_post.contents).to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)") }
+      it do
+        expect(new_post.contents)
+          .to eq("Here's a copy: Lorum ipsum dolor rainbow bright. I like cats, cats are awesome. (copied version)")
+      end
 
       # Testing 'customize' configuration.
       # Two of the comments in the old post have 'nerf' values that cause lambdas

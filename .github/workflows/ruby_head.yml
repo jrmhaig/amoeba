@@ -12,7 +12,7 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        gemfile: [ activerecord_6.1, activerecord_7.0, activerecord_7.1 ]
+        gemfile: [ activerecord_6.1, activerecord_7.0, activerecord_7.1, activerecord_8.0, activerecord_8.1 ]
     env:
       BUNDLE_GEMFILE: gemfiles/${{ matrix.gemfile }}.gemfile
     steps:

@@ -34,8 +34,6 @@ Gem::Specification.new do |s|
   if RUBY_PLATFORM == 'java'
     s.add_development_dependency 'activerecord-jdbc-adapter', '= 70.1'
     s.add_development_dependency 'activerecord-jdbcsqlite3-adapter', '= 70.1'
-  else
-    s.add_development_dependency 'sqlite3', '~> 1.6.0'
   end
 
   s.add_dependency 'activerecord', '>= 6.1.0'

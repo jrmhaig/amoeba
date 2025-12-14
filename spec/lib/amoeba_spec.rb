@@ -152,90 +152,81 @@ describe 'amoeba' do
       # things. These should be duplicated.
       it { expect(new_author.posts.first.custom_things.map(&:value)).to contain_exactly([], [1, 2], [78]) }
     end
-  end
 
-  context 'dup' do
-    before do
-      require ::File.dirname(__FILE__) + '/../support/data.rb'
-    end
+    context 'with inherited classes' do
+      # Testing the effect of single-table inheritance on amoeba duplication.
+      # The Product class has two subclasses, Shirt and Necklace. Each class
+      # has the same amoeba configuration that is defined with the 'raised'
+      # option.
+      # These tests are copied from the original and I do not fully understand
+      # the purpose of some of them as the behavior appears to be the same for
+      # all three classes.
 
-    let(:first_product) { Product.find(1) }
+      subject(:new_product) { old_product.amoeba_dup.tap(&:save) }
 
-    it 'duplicates associated child records' do
-      # Products {{{
-      # Base Class {{{
+      context 'with the base class' do
+        let(:old_product) { Product.find(1) }
+        # The base product class has two relations;
+        #   * image; has_many with default amoeba configuration
+        #   * section; has_and_belongs_to_many with default amoeba configuration
+        # The amoeba configuration is defined with the propogate option.
 
-      start_image_count = first_product.images.count
-      start_section_count = Section.all.length
-      start_prodsection_count = first_product.section_count
+        # Duplicating product does not result in errors.
+        it { expect(new_product.errors.messages).to be_empty }
 
-      new_product = first_product.amoeba_dup
-      new_product.save
-      expect(new_product.errors.messages).to be_empty
+        # New product copies all images from old product. The old product has
+        # two images so two new images are created for the new product.
+        it { expect { new_product }.to change(Image, :count).by(2) }
+        it { expect { new_product }.not_to change(old_product.images, :count) }
+        it { expect(new_product.images.count).to eq(old_product.images.count) }
 
-      end_image_count = first_product.images.count
-      end_newimage_count = new_product.images.count
-      end_section_count = Section.all.length
-      end_prodsection_count = first_product.section_count
-      end_newprodsection_count = new_product.section_count
+        # New product copies references to all sections from old product. No
+        # new sections are created and the new product is linked to the same
+        # number of sections as the old product.
+        it { expect { new_product }.not_to change(Section.all, :count) }
+        it { expect { new_product }.not_to change(old_product, :section_count) }
+        it { expect(new_product.section_count).to eq(old_product.section_count) }
+      end
 
-      expect(end_image_count).to eq(start_image_count)
-      expect(end_newimage_count).to eq(start_image_count)
-      expect(end_section_count).to eq(start_section_count)
-      expect(end_prodsection_count).to eq(start_prodsection_count)
-      expect(end_newprodsection_count).to eq(start_prodsection_count)
-      # }}}
+      context "with a class inheriting with the 'raised :submissive' configuration" do
+        let(:old_product) { Shirt.find(2) }
 
-      # Inherited Class {{{
-      # Shirt {{{
-      old_product = Shirt.find(2)
+        # Duplicating product does not result in errors.
+        it { expect(new_product.errors.messages).to be_empty }
 
-      start_image_count = old_product.images.count
-      start_section_count = Section.count
-      start_prodsection_count = old_product.section_count
+        # New product copies all images from old product. The old product has
+        # two images so two new images are created for the new product.
+        it { expect { new_product }.to change(Image, :count).by(2) }
+        it { expect { new_product }.not_to change(old_product.images, :count) }
+        it { expect(new_product.images.count).to eq(old_product.images.count) }
 
-      new_product = old_product.amoeba_dup
-      new_product.save
-      expect(new_product.errors.messages).to be_empty
+        # New product copies references to all sections from old product. No
+        # new sections are created and the new product is linked to the same
+        # number of sections as the old product.
+        it { expect { new_product }.not_to change(Section.all, :count) }
+        it { expect { new_product }.not_to change(old_product, :section_count) }
+        it { expect(new_product.section_count).to eq(old_product.section_count) }
+      end
 
-      end_image_count = old_product.images.count
-      end_newimage_count = new_product.images.count
-      end_section_count = Section.count
-      end_prodsection_count = first_product.section_count
-      end_newprodsection_count = new_product.section_count
+      context "with a class inheriting with the 'raised :relaxed' configuration" do
+        let(:old_product) { Necklace.find(3) }
 
-      expect(end_image_count).to eq(start_image_count)
-      expect(end_newimage_count).to eq(start_image_count)
-      expect(end_section_count).to eq(start_section_count)
-      expect(end_prodsection_count).to eq(start_prodsection_count)
-      expect(end_newprodsection_count).to eq(start_prodsection_count)
-      # }}}
+        # Duplicating product does not result in errors.
+        it { expect(new_product.errors.messages).to be_empty }
 
-      # Necklace {{{
-      old_product = Necklace.find(3)
+        # New product copies all images from old product. The old product has
+        # two images so two new images are created for the new product.
+        it { expect { new_product }.to change(Image, :count).by(2) }
+        it { expect { new_product }.not_to change(old_product.images, :count) }
+        it { expect(new_product.images.count).to eq(old_product.images.count) }
 
-      start_image_count = old_product.images.count
-      start_section_count = Section.count
-      start_prodsection_count = old_product.section_count
-
-      new_product = old_product.amoeba_dup
-      new_product.save
-      expect(new_product.errors.messages).to be_empty
-
-      end_image_count = old_product.images.count
-      end_newimage_count = new_product.images.count
-      end_section_count = Section.count
-      end_prodsection_count = first_product.section_count
-      end_newprodsection_count = new_product.section_count
-
-      expect(end_image_count).to eq(start_image_count)
-      expect(end_newimage_count).to eq(start_image_count)
-      expect(end_section_count).to eq(start_section_count)
-      expect(end_prodsection_count).to eq(start_prodsection_count)
-      expect(end_newprodsection_count).to eq(start_prodsection_count)
-      # }}}
-      # }}}
-      # }}}
+        # New product copies references to all sections from old product. No
+        # new sections are created and the new product is linked to the same
+        # number of sections as the old product.
+        it { expect { new_product }.not_to change(Section.all, :count) }
+        it { expect { new_product }.not_to change(old_product, :section_count) }
+        it { expect(new_product.section_count).to eq(old_product.section_count) }
+      end
     end
   end
 

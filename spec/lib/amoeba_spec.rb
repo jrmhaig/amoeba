@@ -304,50 +304,58 @@ describe 'amoeba' do
     end
   end
 
-  context 'override' do
+  context 'when there is an override configured' do
+    subject(:image_dup) { image.amoeba_dup }
+
+    let(:image) { Image.create(filename: 'test.jpg', product_id: 12) }
+
     before do
-      ::Image.fresh_amoeba
-      ::Image.amoeba do
+      Image.fresh_amoeba
+      Image.amoeba do
         override ->(old, new) { new.product_id = 13 if old.filename == 'test.jpg' }
       end
     end
 
-    it 'overrides fields' do
-      image = ::Image.create(filename: 'test.jpg', product_id: 12)
-      image_dup = image.amoeba_dup
-      expect(image_dup.save).to be_truthy
-      expect(image_dup.product_id).to eq(13)
-    end
-
-    it 'does not override fields' do
-      image = ::Image.create(filename: 'test2.jpg', product_id: 12)
-      image_dup = image.amoeba_dup
-      expect(image_dup.save).to be_truthy
-      expect(image_dup.product_id).to eq(12)
-    end
+    it { is_expected.to be_truthy }
+    it { expect(image_dup.product_id).to eq(13) }
   end
 
-  context 'nullify' do
+  context 'when there is an override configured that does not apply' do
+    subject(:image_dup) { image.amoeba_dup }
+
+    let(:image) { Image.create(filename: 'test2.jpg', product_id: 12) }
+
     before do
-      ::Image.fresh_amoeba
-      ::Image.amoeba do
+      Image.fresh_amoeba
+      Image.amoeba do
+        override ->(old, new) { new.product_id = 13 if old.filename == 'test.jpg' }
+      end
+    end
+
+    it { is_expected.to be_truthy }
+    it { expect(image_dup.product_id).to eq(12) }
+  end
+
+  context 'with a field configured with nullify' do
+    subject(:image_dup) { image.amoeba_dup }
+
+    let(:image) { ::Image.create(filename: 'test.jpg', product_id: 12) }
+
+    before do
+      Image.fresh_amoeba
+      Image.amoeba do
         nullify :product_id
       end
     end
 
-    let(:image) { ::Image.create(filename: 'test.jpg', product_id: 12) }
-    let(:image_dup) { image.amoeba_dup }
-
-    it 'nullifies fields' do
-      expect(image_dup.save).to be_truthy
-      expect(image_dup.product_id).to be_nil
-    end
+    it { is_expected.to be_truthy }
+    it { expect(image_dup.product_id).to be_nil }
   end
 
   context 'strict propagate' do
     it 'calls #reset_amoeba' do
-      expect(::SuperBlackBox).to receive(:reset_amoeba).and_call_original
-      box = ::SuperBlackBox.create(title: 'Super Black Box', price: 9.99, length: 1, metal: '1')
+      allow(SuperBlackBox).to receive(:reset_amoeba).and_call_original
+      box = SuperBlackBox.create(title: 'Super Black Box', price: 9.99, length: 1, metal: '1')
       new_box = box.amoeba_dup
       expect(new_box.save).to be_truthy
     end

@@ -396,16 +396,45 @@ describe 'amoeba' do
     end
   end
 
-  context 'inheritance' do
-    let(:box) { Box.create }
+  context 'with inheritance' do
+    # Box
+    #   has_many :products,     class_name: 'BoxProduct'
+    #   has_many :sub_products, class_name: 'BoxSubProduct'
+    #
+    # BoxProduct
+    #   belongs_to :box, class_name: 'Box'
+    #   amoeba do
+    #     enable
+    #     propagate
+    #   end
+    #
+    # BoxSubProduct < BoxProduct
+    #   has_one :another_product, class_name: 'BoxAnotherProduct'
+    #
+    # BoxSubSubProduct < BoxSubProduct
+    #
+    # BoxAnotherProduct < BoxProduct
+    #   belongs_to :sub_product, class_name: 'BoxSubProduct'
+    #
+    # This test, from the original suite, appears to be testing
+    #   * BoxProduct has amoeba configured with 'propagate'
+    #   * BoxSubProduct inherits (STI) from BoxProduct
+    #   * BoxSubSubProduct inherits (STI) from BoxSubProduct
+    #
+    # When the instance of BoxSubProduct is duplicated as a result of an
+    # an instance of Box being duplicated then amoeba also acts on it to make
+    # a duplicate of the instance of `another_product`.
+    #
+    # This test could be improved to also test the behaviour when `propagate`
+    # is not used.
 
-    it 'does not fail with a deep inheritance' do
-      sub_sub_product = BoxSubSubProduct.create(title: 'Awesome shoes')
-      another_product = BoxAnotherProduct.create(title: 'Cleaning product')
-      sub_sub_product.update(box: box, another_product: another_product)
-      expect(box.sub_products.first.another_product.title).to eq('Cleaning product')
-      expect(box.amoeba_dup.sub_products.first.another_product.title).to eq('Cleaning product')
-    end
+    let(:box) { Box.create }
+    let(:sub_sub_product) { BoxSubSubProduct.create(title: 'Awesome shoes') }
+    let(:another_product) { BoxAnotherProduct.create(title: 'Cleaning product') }
+
+    before { sub_sub_product.update(box: box, another_product: another_product) }
+
+    it { expect(box.amoeba_dup.sub_products.first.another_product.title).to eq('Cleaning product') }
   end
 
   context 'inheritance extended' do

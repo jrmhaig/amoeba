@@ -437,34 +437,51 @@ describe 'amoeba' do
     it { expect(box.amoeba_dup.sub_products.first.another_product.title).to eq('Cleaning product') }
   end
 
-  context 'inheritance extended' do
-    subject { stage.amoeba_dup }
+  context 'with inheritance extended' do
+    subject(:stage_dup) { stage.amoeba_dup }
 
-    let(:stage) do
-      stage = CustomStage.new(title: 'My Stage', external_id: 213)
+    # CustomStage inherits from Stage
+    # Stage has amoeba configured with `propagate`
+    # These tests are not exactly equivalent to the previous verison. Formerly
+    # all the expectations were in a single block and `save!` was executed on
+    # the subject. This does not need to be done in some cases.
+
+    let(:stage) { CustomStage.new(title: 'My Stage', external_id: 213) }
+
+    before do
       stage.listeners.build(name: 'John')
       stage.listeners.build(name: 'Helen')
       stage.specialists.build(name: 'Jack')
       stage.custom_rules.build(description: 'Kill all humans')
       stage.save!
-      stage
     end
 
-    it 'contains parent association and own associations', :aggregate_failures do
-      subject
-      expect { subject.save! }.to change(Listener, :count).by(2)
-                                                          .and change(Specialist, :count).by(1)
-                                                                                         .and change(
-                                                                                           CustomRule, :count
-                                                                                         ).by(1)
+    # Stage has the listeners and specialist has_many attributes configured
+    # with amoeba with `include_association`. This is inherited by CustomStage.
+    it { expect { stage_dup.save! }.to change(Listener, :count).by(2) }
+    it { expect(stage_dup.tap(&:save!).listeners.find_by(name: 'John')).not_to be_nil }
+    it { expect(stage_dup.tap(&:save!).listeners.find_by(name: 'Helen')).not_to be_nil }
+    it { expect { stage_dup.save! }.to change(Specialist, :count).by(1) }
+    it { expect(stage_dup.tap(&:save!).specialists.find_by(name: 'Jack')).not_to be_nil }
 
-      expect(subject.title).to eq 'My Stage'
-      expect(subject.external_id).to be_nil
-      expect(subject.listeners.find_by(name: 'John')).not_to be_nil
-      expect(subject.listeners.find_by(name: 'Helen')).not_to be_nil
-      expect(subject.specialists.find_by(name: 'Jack')).not_to be_nil
-      expect(subject.custom_rules.first.description).to eq 'Kill all humans'
-    end
+    # CustomStage has the custom_rules has_many attribute configured with
+    # amoeba with `include_association`. This attribute does not exist for
+    # Stage.
+    it { expect { stage_dup.save! }.to change(CustomRule, :count).by(1) }
+    # save! is not required here as it is testing the unsaved instance of
+    # CustomRule. This differs from the tests above for listeners and
+    # specialists which uses find_by. This is testing the same thing but needs
+    # the instances to be in the database.
+    it { expect(stage_dup.custom_rules.first.description).to eq 'Kill all humans' }
+
+    # Stage has an attribute title that is not explicitly configured for amoeba
+    # and so has the default configuration. CustomStage inherits this
+    # configuration.
+    it { expect(stage_dup.title).to eq 'My Stage' }
+
+    # Stage has an attribute external_id that is configured for amoeba with
+    # nullify. CustomStage inherits this configuration.
+    it { expect(stage_dup.external_id).to be_nil }
   end
 
   context 'polymorphic' do

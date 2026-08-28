@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby_version: [ 3.2, 3.3, 3.4, '4.0', head ]
+        ruby_version: [ 3.3, 3.4, '4.0', head ]
     env:
       BUNDLE_GEMFILE: gemfiles/activerecord_head.gemfile
     steps:

@@ -4,9 +4,7 @@
 
 source 'https://rubygems.org'
 
-git 'https://github.com/rails/rails.git', branch: 'main' do
-  gem 'activerecord'
-end
+gem 'activerecord', '~> 8.0.0'
 
 group :development, :test do
   gem 'rake'
